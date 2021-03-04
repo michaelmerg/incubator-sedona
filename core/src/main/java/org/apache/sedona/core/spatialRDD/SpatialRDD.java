@@ -280,6 +280,11 @@ public class SpatialRDD<T extends Geometry>
         return partitioner;
     }
 
+    public void setPartitioner(SpatialPartitioner partitioner)
+    {
+        this.partitioner =  partitioner;
+    }
+
     public void spatialPartitioning(SpatialPartitioner partitioner)
     {
         this.partitioner = partitioner;
@@ -393,15 +398,15 @@ public class SpatialRDD<T extends Geometry>
     public void buildIndex(final IndexType indexType, boolean buildIndexOnSpatialPartitionedRDD)
             throws Exception
     {
-        if (buildIndexOnSpatialPartitionedRDD == false) {
+        if (!buildIndexOnSpatialPartitionedRDD) {
             //This index is built on top of unpartitioned SRDD
-            this.indexedRawRDD = this.rawSpatialRDD.mapPartitions(new IndexBuilder(indexType));
+            this.indexedRawRDD = this.rawSpatialRDD.mapPartitionsWithIndex(new IndexBuilder<>(indexType, false), false);
         }
         else {
             if (this.spatialPartitionedRDD == null) {
                 throw new Exception("[AbstractSpatialRDD][buildIndex] spatialPartitionedRDD is null. Please do spatial partitioning before build index.");
             }
-            this.indexedRDD = this.spatialPartitionedRDD.mapPartitions(new IndexBuilder(indexType));
+            this.indexedRDD = this.spatialPartitionedRDD.mapPartitionsWithIndex(new IndexBuilder<>(indexType, true), true);
         }
     }
 

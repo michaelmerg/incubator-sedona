@@ -25,11 +25,13 @@ import org.apache.sedona.core.serde.SedonaKryoRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
+import org.apache.spark.sql.SparkSession;
 
 public class TestBase
 {
     protected static SparkConf conf;
     protected static JavaSparkContext sc;
+    protected static SparkSession spark;
 
     protected static void initialize(final String testSuiteName)
     {
@@ -37,7 +39,9 @@ public class TestBase
         conf.set("spark.serializer", KryoSerializer.class.getName());
         conf.set("spark.kryo.registrator", SedonaKryoRegistrator.class.getName());
 
-        sc = new JavaSparkContext(conf);
+        spark = SparkSession.builder().config(conf).getOrCreate();
+
+        sc = new JavaSparkContext(spark.sparkContext());
         Logger.getLogger("org").setLevel(Level.WARN);
         Logger.getLogger("akka").setLevel(Level.WARN);
     }

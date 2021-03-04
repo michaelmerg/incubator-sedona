@@ -20,7 +20,7 @@
 package org.apache.sedona.core.spatialRddTool;
 
 import org.apache.sedona.core.enums.IndexType;
-import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.Function2;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.SpatialIndex;
@@ -32,32 +32,37 @@ import java.util.Iterator;
 import java.util.Set;
 
 public final class IndexBuilder<T extends Geometry>
-        implements FlatMapFunction<Iterator<T>, SpatialIndex>
-{
-    IndexType indexType;
+        implements Function2<Integer, Iterator<T>, Iterator<SpatialIndex>> {
 
-    public IndexBuilder(IndexType indexType)
+    private final IndexType indexType;
+    private final boolean partitionAware;
+
+    public IndexBuilder(IndexType indexType, boolean partitionAware)
     {
         this.indexType = indexType;
+        this.partitionAware = partitionAware;
     }
 
     @Override
-    public Iterator<SpatialIndex> call(Iterator<T> objectIterator)
-            throws Exception
-    {
+    public Iterator<SpatialIndex> call(Integer partitionIndex, Iterator<T> objectIterator) throws Exception {
         SpatialIndex spatialIndex;
         if (indexType == IndexType.RTREE) {
             spatialIndex = new STRtree();
-        }
-        else {
+        } else {
             spatialIndex = new Quadtree();
         }
+
         while (objectIterator.hasNext()) {
             T spatialObject = objectIterator.next();
             spatialIndex.insert(spatialObject.getEnvelopeInternal(), spatialObject);
         }
-        Set<SpatialIndex> result = new HashSet();
+
+        Set<SpatialIndex> result = new HashSet<>();
         spatialIndex.query(new Envelope(0.0, 0.0, 0.0, 0.0));
+
+        if (partitionAware) {
+            spatialIndex = new PartitionAwareSpatialIndex(partitionIndex, spatialIndex);
+        }
         result.add(spatialIndex);
         return result.iterator();
     }
